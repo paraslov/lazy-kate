@@ -353,7 +353,7 @@
 
             try {
                 // Конвертируем в строку и очищаем
-                let amountStr = String(amount).replace(/\s+/g, '').replace(',', '.');
+                let amountStr = String(amount);
                 let amountNum = parseFloat(amountStr);
                 
                 if (isNaN(amountNum)) {
@@ -361,17 +361,21 @@
                 }
 
                 // Форматируем с разделителями тысяч
-                if (amountNum === Math.floor(amountNum)) {
-                    return Math.floor(amountNum).toLocaleString('ru-RU');
-                } else {
-                    return amountNum.toLocaleString('ru-RU', {
+                return amountNum.toLocaleString('de-DE', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                     });
-                }
             } catch (e) {
                 return String(amount);
             }
+        }
+
+        function formatPercent(percent) {
+            if (!percent || percent === '' || percent === 'undefined') {
+                return '';
+            }
+
+            return `${percent * 100}%`
         }
 
         function processFile(file) {
@@ -432,17 +436,17 @@
                     const col5 = String(row[4] || '');
                     const col6 = String(row[5] || '');
                     const col8 = formatAmount(row[7] || '');
-                    const col15 = String(row[14] || '');
+                    const col15 = formatPercent(row[14] || null);
                     const col25 = String(row[24] || '');
 
                     // Проверяем, есть ли данные в столбце 25
                     let message;
                     if (col25 && col25.toLowerCase() !== 'undefined' && col25.trim() !== '') {
                         // Формат с данными в столбце 25
-                        message = `Заявка «${col2}»: сумма ${col8}; получение у «${col5}» («${col25}»), ставка «${col15}»; платить с «${col3}» на «${col6}» (см. счёт):`;
+                        message = `Заявка «${col2}»: сумма ${col8}; получение у «${col5}» («${col25}»), ставка ${col15}; платить с «${col3}» на «${col6}» (см. счёт):`;
                     } else {
                         // Формат без данных в столбце 25
-                        message = `Заявка «${col2}»: сумма ${col8}; получение у «${col5}», ставка «${col15}»; платить с «${col3}» на «${col6}» (см. счёт):`;
+                        message = `Заявка «${col2}»: сумма ${col8}; получение у «${col5}», ставка ${col15}; платить с «${col3}» на «${col6}» (см. счёт):`;
                     }
 
                     processedMessages.push(message);
