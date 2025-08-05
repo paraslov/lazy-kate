@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обработчик таблиц</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.15);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin: 20px 0;
+            display: none;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .result-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-number {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            font-size: 0.9em;
+        }
+
+        .result-text {
+            font-family: 'Courier New', monospace;
+            color: #333;
+            line-height: 1.6;
+            padding-right: 40px;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            float: right;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+            transform: scale(1.05);
+        }
+
+        .copy-btn.copied {
+            background: #17a2b8;
+        }
+
+        .stats {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .stats-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stats-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .copy-all-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .copy-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.6);
+        }
+
+        .info {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            color: #856404;
+        }
+
+        .info h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .info ul {
+            margin-left: 20px;
+        }
+
+        .info li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .upload-area {
+                padding: 20px;
+            }
+        }
+
+        .error {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            color: #721c24;
+            border-radius: 15px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            color: #155724;
+            border-radius: 15px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Обработчик таблиц</h1>
+        
+        <div class="info">
+            <h3>ℹ️ Инструкция по использованию</h3>
+            <ul>
+                <li><strong>Поддерживаемые форматы:</strong> Excel (.xlsx, .xls), CSV</li>
+                <li><strong>Используемые столбцы:</strong> 2, 3, 5, 6, 8, 15, 25 (нумерация с 1)</li>
+                <li><strong>Формат сообщений:</strong> автоматически определяется по наличию данных в столбце 25</li>
+                <li><strong>Суммы:</strong> автоматически форматируются с разделителями тысяч</li>
+            </ul>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Перетащите файл сюда или нажмите кнопку</div>
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                Выбрать файл
+            </button>
+            <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv">
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stats-number" id="statsNumber">0</div>
+            <div class="stats-label">записей обработано</div>
+        </div>
+
+        <div class="results" id="results">
+            <button class="copy-all-btn" id="copyAllBtn">📋 Копировать все сообщения</button>
+            <div id="resultsList"></div>
+        </div>
+    </div>
+
+    <script>
+        let processedMessages = [];
+
+        // Обработка перетаскивания файлов
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processFile(e.target.files[0]);
+            }
+        });
+
+        function formatAmount(amount) {
+            if (!amount || amount === '' || amount === 'undefined') {
+                return '';
+            }
+
+            try {
+                // Конвертируем в строку и очищаем
+                let amountStr = String(amount).replace(/\s+/g, '').replace(',', '.');
+                let amountNum = parseFloat(amountStr);
+                
+                if (isNaN(amountNum)) {
+                    return String(amount);
+                }
+
+                // Форматируем с разделителями тысяч
+                if (amountNum === Math.floor(amountNum)) {
+                    return Math.floor(amountNum).toLocaleString('ru-RU');
+                } else {
+                    return amountNum.toLocaleString('ru-RU', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                }
+            } catch (e) {
+                return String(amount);
+            }
+        }
+
+        function processFile(file) {
+            const fileName = file.name.toLowerCase();
+            
+            if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls') && !fileName.endsWith('.csv')) {
+                showError('Поддерживаются только файлы Excel (.xlsx, .xls) и CSV');
+                return;
+            }
+
+            showProgress();
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    
+                    if (fileName.endsWith('.csv')) {
+                        // Обработка CSV
+                        const csvData = Papa.parse(e.target.result, {
+                            skipEmptyLines: true,
+                            dynamicTyping: true
+                        });
+                        data = csvData.data;
+                    } else {
+                        // Обработка Excel
+                        const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    }
+
+                    processTableData(data);
+                    hideProgress();
+                    
+                } catch (error) {
+                    hideProgress();
+                    showError('Ошибка при обработке файла: ' + error.message);
+                }
+            };
+
+            if (fileName.endsWith('.csv')) {
+                reader.readAsText(file, 'utf-8');
+            } else {
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        function processTableData(data) {
+            processedMessages = [];
+            
+            data.forEach((row, index) => {
+                try {
+                    if (index < 2) return; // Пропускаем пустые строки
+                    
+                    // Получаем данные из нужных столбцов (индексы с 0)
+                    const col2 = String(row[1] || '');
+                    const col3 = String(row[2] || '');
+                    const col5 = String(row[4] || '');
+                    const col6 = String(row[5] || '');
+                    const col8 = formatAmount(row[7] || '');
+                    const col15 = String(row[14] || '');
+                    const col25 = String(row[24] || '');
+
+                    // Проверяем, есть ли данные в столбце 25
+                    let message;
+                    if (col25 && col25.toLowerCase() !== 'undefined' && col25.trim() !== '') {
+                        // Формат с данными в столбце 25
+                        message = `Заявка «${col2}»: сумма ${col8}; получение у «${col5}» («${col25}»), ставка «${col15}»; платить с «${col3}» на «${col6}» (см. счёт):`;
+                    } else {
+                        // Формат без данных в столбце 25
+                        message = `Заявка «${col2}»: сумма ${col8}; получение у «${col5}», ставка «${col15}»; платить с «${col3}» на «${col6}» (см. счёт):`;
+                    }
+
+                    processedMessages.push(message);
+
+                } catch (error) {
+                    processedMessages.push(`Ошибка в строке ${index + 1}: ${error.message}`);
+                }
+            });
+
+            displayResults();
+        }
+
+        function displayResults() {
+            const resultsDiv = document.getElementById('results');
+            const resultsListDiv = document.getElementById('resultsList');
+            const statsDiv = document.getElementById('stats');
+            const statsNumber = document.getElementById('statsNumber');
+
+            if (processedMessages.length === 0) {
+                showError('Не удалось обработать данные из файла');
+                return;
+            }
+
+            // Показываем статистику
+            statsNumber.textContent = processedMessages.length;
+            statsDiv.style.display = 'block';
+
+            // Очищаем предыдущие результаты
+            resultsListDiv.innerHTML = '';
+
+            // Добавляем каждое сообщение
+            processedMessages.forEach((message, index) => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+                resultItem.innerHTML = `
+                    <div class="result-number">${index + 1}</div>
+                    <div class="result-text">${message}</div>
+                    <button class="copy-btn" onclick="copyMessage(${index}, this)">Копировать</button>
+                    <div style="clear: both;"></div>
+                `;
+                resultsListDiv.appendChild(resultItem);
+            });
+
+            resultsDiv.style.display = 'block';
+            showSuccess(`Успешно обработано ${processedMessages.length} записей!`);
+        }
+
+        function copyMessage(index, button) {
+            const message = processedMessages[index];
+            navigator.clipboard.writeText(message).then(() => {
+                button.textContent = 'Скопировано!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = 'Копировать';
+                    button.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        document.getElementById('copyAllBtn').addEventListener('click', () => {
+            const allMessages = processedMessages.join('\n\n');
+            navigator.clipboard.writeText(allMessages).then(() => {
+                const btn = document.getElementById('copyAllBtn');
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Все сообщения скопированы!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 3000);
+            });
+        });
+
+        function showProgress() {
+            document.getElementById('progressBar').style.display = 'block';
+            document.getElementById('progressFill').style.width = '100%';
+        }
+
+        function hideProgress() {
+            setTimeout(() => {
+                document.getElementById('progressBar').style.display = 'none';
+                document.getElementById('progressFill').style.width = '0%';
+            }, 500);
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = '❌ ' + message;
+            document.querySelector('.container').insertBefore(errorDiv, document.getElementById('uploadArea'));
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success';
+            successDiv.textContent = '✅ ' + message;
+            document.querySelector('.container').insertBefore(successDiv, document.getElementById('results'));
+            setTimeout(() => successDiv.remove(), 5000);
+        }
+    </script>
+</body>
+</html>
