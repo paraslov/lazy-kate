@@ -375,7 +375,7 @@
                 return '';
             }
 
-            return `${percent * 100}%`
+            return `${(percent * 100).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
         }
 
         function processFile(file) {

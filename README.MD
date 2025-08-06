@@ -1,6 +1,6 @@
 *** TO RUN BOT
 
-python -m venv telegram_bot_env
+python3 -m venv telegram_bot_env
 
 source telegram_bot_env/bin/activate
 
